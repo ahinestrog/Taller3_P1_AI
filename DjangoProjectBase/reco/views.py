@@ -30,22 +30,22 @@ def reco(request):
 
         # Extraer el titulo de la película pero solo el titulo
         recommendations = []
-        start_index = 0
+        indice_inicio = 0
         while True:
-            start_index = generated_text.find('"', start_index)
-            if start_index == -1:
+            indice_inicio = generated_text.find('"', indice_inicio)
+            if indice_inicio == -1:
                 break
-            end_index = generated_text.find('"', start_index + 1)
-            if end_index == -1:
+            indice_final = generated_text.find('"', indice_inicio + 1)
+            if indice_final == -1:
                 break
-            title = generated_text[start_index + 1:end_index]
+            title = generated_text[indice_inicio + 1:indice_final]
             recommendations.append(title)
-            start_index = end_index + 1  # Busca el siguiente titulo, para agregarlo a la lista de recomendaciones
+            indice_inicio = indice_final + 1  # Busca el siguiente titulo, para agregarlo a la lista de recomendaciones
 
         # Busca en la base de datos, algo así como en el home y mira que si exista la película
         for searchTerm in recommendations:
-            found_movies = Movie.objects.filter(title__icontains=searchTerm)
-            if found_movies.exists():
-                movies.extend(found_movies)
+            db_movies = Movie.objects.filter(title__icontains=searchTerm)
+            if db_movies.exists():
+                movies.extend(db_movies)
 
     return render(request, 'reco.html', {'recommendations': movies})  # Pasar las películas encontradas
