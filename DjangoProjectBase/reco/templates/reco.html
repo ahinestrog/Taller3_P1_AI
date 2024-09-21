@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="container">
+        <h1>Escribe lo que buscas en una película</h1>
+        <form method="POST" action="{% url 'reco' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="prompt">Descripción:</label>
+                <input type="text" id="prompt" name="prompt" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Buscar</button>
+        </form>
+
+        {% if recommendations %}
+            <h2 class="mt-4">Recomendaciones:</h2>
+            <div class="row row-cols-1 row-cols-md-3 g-4">
+                {% for recommendation in recommendations %}
+                <div class="col">
+                    <div class="card">
+                        {% if recommendation.image %}
+                            <img src="{{ recommendation.image.url }}" class="card-img-top" alt="{{ recommendation.title }}">
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">{{ recommendation.title }}</h5>
+                            <p class="card-text">{{ recommendation.description }}</p>
+                            <p class="card-text"><strong>Año:</strong> {{ recommendation.year }}</p>
+                            <p class="card-text"><strong>Género:</strong> {{ recommendation.genre }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No hay películas disponibles.</p>
+        {% endif %}
+    </div>
+{% endblock %}
