@@ -3,49 +3,44 @@ import openai
 from movie.models import Movie
 from dotenv import load_dotenv
 import os
+import numpy as np
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '../api_keys_2.env')
-load_dotenv(dotenv_path)
+# Busca el archivo .env en la carpeta raíz del proyecto
+load_dotenv('api_keys_2.env')
 
+# Obtiene la API key de OpenAI en el archivo .env
 api_key = os.getenv('openai_apikey')
 
 # Configurar la API de OpenAI
 openai.api_key = api_key
 
-def reco(request):
-    movies = []  # Lista de películas recomendadas que si existen en la base de datos
+def get_embedding(text, client, model="text-embedding-3-small"):
+   text = text.replace("\n", " ")
+   return client.embeddings.create(input = [text], model=model).data[0].embedding
 
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def reco(request):
     if request.method == 'POST':
         prompt = request.POST.get('prompt')
-        prompt_text = f"Recomiéndame títulos de películas que podrían estar disponibles en una base de datos de películas, basadas en: {prompt}"
 
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt_text}],
-            max_tokens=150,
-            temperature=0.7
-        )
+        # Obtenemos todos los objetos del modelo de movies
+        movies = Movie.objects.all()
+        
+        # Del prompt obtenemos el embedding
+        emb_request = get_embedding(prompt, openai)
 
-        generated_text = response.choices[0].message['content']
+        sim = []
+        for i in range(len(movies)):
+            emb = movies[i].emb
+            emb = list(np.frombuffer(emb))
+            sim.append(cosine_similarity(emb, emb_request))
+        sim = np.array(sim)
+        idx = np.argmax(sim)
+        idx = int(idx)
+        movies = Movie.objects.filter(title=movies[idx].title)
+    else:
+        movies = Movie.objects.all()
 
-        # Extraer el titulo de la película pero solo el titulo
-        recommendations = []
-        indice_inicio = 0
-        while True:
-            indice_inicio = generated_text.find('"', indice_inicio)
-            if indice_inicio == -1:
-                break
-            indice_final = generated_text.find('"', indice_inicio + 1)
-            if indice_final == -1:
-                break
-            title = generated_text[indice_inicio + 1:indice_final]
-            recommendations.append(title)
-            indice_inicio = indice_final + 1  # Busca el siguiente titulo, para agregarlo a la lista de recomendaciones
-
-        # Busca en la base de datos, algo así como en el home y mira que si exista la película
-        for searchTerm in recommendations:
-            db_movies = Movie.objects.filter(title__icontains=searchTerm)
-            if db_movies.exists():
-                movies.extend(db_movies)
-
-    return render(request, 'reco.html', {'recommendations': movies})  # Pasar las películas encontradas
+    return render(request, 'reco.html', {'recommendations': movies})
